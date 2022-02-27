@@ -43,7 +43,11 @@ func setupDB() *sql.DB {
 	return db
 }
 
+var db *sql.DB
+
 func main() {
+	db = setupDB()
+
 	router := gin.Default()
 
 	router.GET("/users", getUsers)
@@ -55,8 +59,6 @@ func main() {
 }
 
 func getUsers(c *gin.Context) {
-	db := setupDB()
-
 	fmt.Println("Getting users...")
 
 	rows, err := db.Query("SELECT * FROM users")
@@ -95,8 +97,6 @@ func getUser(c *gin.Context) {
 	if userId == "" {
 		response = JsonResponse{Type: "error", Message: "You are missing userId parameter."}
 	} else {
-		db := setupDB()
-
 		fmt.Println("getting user " + userId + " from DB...")
 
 		rows, err := db.Query("SELECT * FROM users where id = " + userId)
@@ -139,8 +139,6 @@ func createUser(c *gin.Context) {
 
 	var response = JsonResponse{}
 
-	db := setupDB()
-
 	fmt.Println("Inserting user into DB")
 
 	fmt.Println("Inserting new user with name: " + user.Name + ", birthday: " + user.Birthday + ", gender: " + user.Gender + ", email: " + user.Email)
@@ -170,8 +168,6 @@ func updateUser(c *gin.Context) {
 
 	var response = JsonResponse{}
 
-	db := setupDB()
-
 	fmt.Println("updating user " + userId + " from DB...")
 
 	// create the update sql query
@@ -196,8 +192,6 @@ func deleteUser(c *gin.Context) {
 	if userId == "" {
 		response = JsonResponse{Type: "error", Message: "You are missing userId parameter."}
 	} else {
-		db := setupDB()
-
 		fmt.Println("Deleting user from DB")
 
 		_, err := db.Exec("DELETE FROM users where id = $1", userId)
