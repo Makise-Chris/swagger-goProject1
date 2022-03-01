@@ -3,9 +3,16 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
+
+	docs "gin-project1/docs"
+
+	"github.com/go-playground/validator/v10"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 const (
@@ -16,10 +23,10 @@ const (
 
 type User struct {
 	Id       int    `json:"id"`
-	Name     string `json:"name"`
-	Birthday string `json:"birthday"`
-	Gender   string `json:"gender"`
-	Email    string `json:"email"`
+	Name     string `json:"name" validate:"required"`
+	Birthday string `json:"birthday" validate:"required,checkdate"`
+	Gender   string `json:"gender" validate:"required,oneof=nam nữ"`
+	Email    string `json:"email" validate:"required,email"`
 }
 
 type JsonResponse struct {
@@ -45,19 +52,49 @@ func setupDB() *sql.DB {
 
 var db *sql.DB
 
+var validate *validator.Validate
+
 func main() {
 	db = setupDB()
 
+	validate = validator.New()
+
+	validate.RegisterValidation("checkdate", checkDate)
+
 	router := gin.Default()
+
+	docs.SwaggerInfo.BasePath = "/"
 
 	router.GET("/users", getUsers)
 	router.GET("/users/:id", getUser)
 	router.POST("/users", createUser)
 	router.PUT("/users/:id", updateUser)
 	router.DELETE("/users/:id", deleteUser)
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.Run(":3000")
 }
 
+func checkDate(f1 validator.FieldLevel) bool {
+	str := f1.Field().String()
+
+	re := regexp.MustCompile("((19|20)\\d\\d)-(0?[1-9]|1[012])-(0?[1-9]|[12][0-9]|3[01])")
+
+	fmt.Println(re.MatchString(str))
+
+	return re.MatchString(str)
+}
+
+// @BasePath /
+
+//GetUsers godoc
+//@Summary Lay danh sach User
+//@Description Lay danh sach User
+//@Tags Users
+//@Accept json
+//@Produce json
+//@Success 200 {object} JsonResponse
+//@Router /users [get]
 func getUsers(c *gin.Context) {
 	fmt.Println("Getting users...")
 
@@ -89,6 +126,15 @@ func getUsers(c *gin.Context) {
 	c.JSON(200, response)
 }
 
+//GetUser godoc
+//@Summary Lay User tuong ung
+//@Description Lay User tuong ung
+//@Tags Users
+//@Accept json
+//@Produce json
+//@Param  id path int true "User ID"
+//@Success 200 {object} JsonResponse
+//@Router /users/{id} [get]
 func getUser(c *gin.Context) {
 	userId := c.Param("id")
 
@@ -127,17 +173,62 @@ func getUser(c *gin.Context) {
 	c.JSON(200, response)
 }
 
+//CreateUser godoc
+//@Summary  Tao User moi
+//@Description Tao User moi
+//@Tags Users
+//@Accept json
+//@Produce json
+//@Param  user body User true "Create User"
+//@Success 200 {object} JsonResponse
+//@Failure 400 {object} JsonResponse
+//@Router /users [post]
 func createUser(c *gin.Context) {
 	var user User
 
-	err := c.ShouldBindJSON(&user)
+	var response = JsonResponse{}
 
+	//validate
+	c.ShouldBindJSON(&user)
+	err := validate.Struct(user)
 	if err != nil {
-		checkErr(err)
+		fmt.Println("-----")
+		fmt.Println(err)
+		fmt.Println("-----")
+
+		var message string
+
+		for _, err := range err.(validator.ValidationErrors) {
+			/*
+				fmt.Println(err.StructField())
+				fmt.Println(err.ActualTag())
+				fmt.Println(err.Kind())
+				fmt.Println(err.Value())
+				fmt.Println(err.Param())
+				fmt.Println("---------------")
+			*/
+			if err.ActualTag() == "required" {
+				message = message + "Nhập thiếu thông tin. "
+			}
+			if err.ActualTag() == "checkdate" {
+				message = message + "Nhập sai định dạng ngày tháng (yyyy-mm-dd). "
+			}
+			if err.ActualTag() == "oneof" {
+				message = message + "Nhập sai giới tính (nam hoặc nữ). "
+			}
+			if err.ActualTag() == "email" {
+				message = message + "Nhập sai định dạng email. "
+			}
+		}
+
+		response = JsonResponse{Type: "fail", Message: message}
+
+		c.JSON(400, response)
+
+		c.Abort()
+
 		return
 	}
-
-	var response = JsonResponse{}
 
 	fmt.Println("Inserting user into DB")
 
@@ -147,26 +238,72 @@ func createUser(c *gin.Context) {
 	err = db.QueryRow("INSERT INTO users(name, birthday, gender, email) VALUES($1, $2, $3, $4) returning id;", user.Name, user.Birthday, user.Gender, user.Email).Scan(&lastInsertID)
 
 	// check errors
-	checkErr(err)
+	fmt.Println(err)
 
 	response = JsonResponse{Type: "success", Message: "The user has been inserted successfully!"}
 
 	c.JSON(200, response)
 }
 
+//UpdateUser godoc
+//@Summary  Sua thong tin User
+//@Description Sua thong tin User
+//@Tags Users
+//@Accept json
+//@Produce json
+//@Param  id path int true "User ID"
+//@Param  user body User true "Update User"
+//@Success 200 {object} JsonResponse
+//@Failure 400 {object} JsonResponse
+//@Router /users/{id} [put]
 func updateUser(c *gin.Context) {
 	userId := c.Param("id")
 
 	var user User
 
-	err := c.ShouldBindJSON(&user)
+	var response = JsonResponse{}
 
+	//validate
+	c.ShouldBindJSON(&user)
+	err := validate.Struct(user)
 	if err != nil {
-		checkErr(err)
+		fmt.Println("-----")
+		fmt.Println(err)
+		fmt.Println("-----")
+
+		var message string
+
+		for _, err := range err.(validator.ValidationErrors) {
+			/*
+				fmt.Println(err.StructField())
+				fmt.Println(err.ActualTag())
+				fmt.Println(err.Kind())
+				fmt.Println(err.Value())
+				fmt.Println(err.Param())
+				fmt.Println("---------------")
+			*/
+			if err.ActualTag() == "required" {
+				message = message + "Nhập thiếu thông tin. "
+			}
+			if err.ActualTag() == "checkdate" {
+				message = message + "Nhập sai định dạng ngày tháng (yyyy-mm-dd). "
+			}
+			if err.ActualTag() == "oneof" {
+				message = message + "Nhập sai giới tính (nam hoặc nữ). "
+			}
+			if err.ActualTag() == "email" {
+				message = message + "Nhập sai định dạng email. "
+			}
+		}
+
+		response = JsonResponse{Type: "fail", Message: message}
+
+		c.JSON(400, response)
+
+		c.Abort()
+
 		return
 	}
-
-	var response = JsonResponse{}
 
 	fmt.Println("updating user " + userId + " from DB...")
 
@@ -184,6 +321,15 @@ func updateUser(c *gin.Context) {
 	c.JSON(200, response)
 }
 
+//DeleteUser godoc
+//@Summary  Xoa User
+//@Description Xoa User
+//@Tags Users
+//@Accept json
+//@Produce json
+//@Param  id path int true "User ID"
+//@Success 200 {object} JsonResponse
+//@Router /users/{id} [delete]
 func deleteUser(c *gin.Context) {
 	userId := c.Param("id")
 
@@ -199,7 +345,7 @@ func deleteUser(c *gin.Context) {
 		// check errors
 		checkErr(err)
 
-		response = JsonResponse{Type: "success", Message: "The movie has been deleted successfully!"}
+		response = JsonResponse{Type: "success", Message: "User " + userId + " has been deleted successfully!"}
 	}
 
 	c.JSON(200, response)

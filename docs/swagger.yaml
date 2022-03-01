@@ -1,0 +1,149 @@
+basePath: /
+definitions:
+  main.JsonResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/main.User'
+        type: array
+      message:
+        type: string
+      type:
+        type: string
+    type: object
+  main.User:
+    properties:
+      birthday:
+        type: string
+      email:
+        type: string
+      gender:
+        enum:
+        - nam
+        - nữ
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    required:
+    - birthday
+    - email
+    - gender
+    - name
+    type: object
+info:
+  contact: {}
+paths:
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Lay danh sach User
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+      summary: Lay danh sach User
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Tao User moi
+      parameters:
+      - description: Create User
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/main.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+      summary: Tao User moi
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Xoa User
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+      summary: Xoa User
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Lay User tuong ung
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+      summary: Lay User tuong ung
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Sua thong tin User
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update User
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/main.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.JsonResponse'
+      summary: Sua thong tin User
+      tags:
+      - Users
+swagger: "2.0"
